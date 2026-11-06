@@ -13,6 +13,10 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: azure-terraform-vm
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
