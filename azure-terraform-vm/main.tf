@@ -105,6 +105,11 @@ resource "azurerm_network_interface_security_group_association" "lab" {
   network_security_group_id = azurerm_network_security_group.lab.id
 }
 
+variable "ssh_public_key" {
+  description = "SSH public key for the Azure VM"
+  type        = string
+}
+
 # -------------------------
 # Linux VM
 # -------------------------
@@ -123,16 +128,10 @@ resource "azurerm_linux_virtual_machine" "lab" {
 
   disable_password_authentication = true
 
-
-variable "ssh_public_key" {
-  description = "SSH public key for the Azure VM"
-  type        = string
-}
-
- admin_ssh_key {
-  username   = "azureuser"
-  public_key = var.ssh_public_key
-}
+  admin_ssh_key {
+    username   = "azureuser"
+    public_key = var.ssh_public_key
+  }
 
   os_disk {
     caching              = "ReadWrite"
