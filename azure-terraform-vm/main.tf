@@ -4,6 +4,14 @@ terraform {
       source = "hashicorp/azurerm"
     }
   }
+
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    storage_account_name = "tfstate258223046"
+    container_name       = "tfstate"
+    key                  = "azure-terraform-vm.tfstate"
+    use_azuread_auth     = true
+  }
 }
 
 provider "azurerm" {
@@ -150,6 +158,10 @@ resource "azurerm_linux_virtual_machine" "lab" {
     ManagedBy   = "Terraform"
   }
 }
+
+
+
+
 
 # -------------------------
 # Outputs
