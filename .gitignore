@@ -1,0 +1,16 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+
+# Local/environment secrets
+.env
+*.pem
+*.key
+
+# VS Code
+.vscode/
+Terraform-Full-Course-Azure/
