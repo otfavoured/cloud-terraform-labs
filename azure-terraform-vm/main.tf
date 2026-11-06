@@ -123,10 +123,16 @@ resource "azurerm_linux_virtual_machine" "lab" {
 
   disable_password_authentication = true
 
-  admin_ssh_key {
-    username   = "azureuser"
-    public_key = file(pathexpand("~/.ssh/id_ed25519.pub"))
-  }
+
+variable "ssh_public_key" {
+  description = "SSH public key for the Azure VM"
+  type        = string
+}
+
+ admin_ssh_key {
+  username   = "azureuser"
+  public_key = var.ssh_public_key
+}
 
   os_disk {
     caching              = "ReadWrite"

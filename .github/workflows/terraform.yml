@@ -17,6 +17,9 @@ jobs:
       run:
         working-directory: azure-terraform-vm
 
+    env:
+      TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
