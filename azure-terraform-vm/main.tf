@@ -4,176 +4,167 @@ terraform {
       source = "hashicorp/azurerm"
     }
   }
-}
-#   backend "azurerm" {
-#     resource_group_name  = "rg-terraform-state"
-#     storage_account_name = "tfstate258223046"
-#     container_name       = "tfstate"
-#     key                  = "azure-terraform-vm.tfstate"
-#     use_azuread_auth     = true
-#   }
-# }
 
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    storage_account_name = "tfstate258223046"
+    container_name       = "tfstate"
+    key                  = "azure-terraform-vm.tfstate"
+    use_azuread_auth     = true
+  }
+
+}
 provider "azurerm" {
   features {
      resource_group {
        prevent_deletion_if_contains_resources = false
   }
 }
+  }
+
+
+# -------------------------
+# Virtual Network
+# -------------------------
+
+resource "azurerm_virtual_network" "lab" {
+  name                = "vnet-terraform-lab"
+  address_space       = ["10.10.0.0/16"]
+  location            = azurerm_resource_group.lab.location
+  resource_group_name = azurerm_resource_group.lab.name
 }
-# # -------------------------
-# # Resource Group
-# # -------------------------
 
-# resource "azurerm_resource_group" "lab" {
-#   name     = "testRG"
-#   location = "Central US"
-# }
+# -------------------------
+# Subnet
+# -------------------------
 
-# # -------------------------
-# # Virtual Network
-# # -------------------------
+resource "azurerm_subnet" "lab" {
+  name                 = "snet-vm"
+  resource_group_name  = azurerm_resource_group.lab.name
+  virtual_network_name = azurerm_virtual_network.lab.name
+  address_prefixes     = ["10.10.1.0/24"]
+}
 
-# resource "azurerm_virtual_network" "lab" {
-#   name                = "vnet-terraform-lab"
-#   address_space       = ["10.10.0.0/16"]
-#   location            = azurerm_resource_group.lab.location
-#   resource_group_name = azurerm_resource_group.lab.name
-# }
+# -------------------------
+# Network Security Group
+# -------------------------
+resource "azurerm_network_security_group" "lab" {
+  name                = "nsg-terraform-vm"
+  location            = azurerm_resource_group.lab.location
+  resource_group_name = azurerm_resource_group.lab.name
 
-# # -------------------------
-# # Subnet
-# # -------------------------
+  security_rule {
+    name                   = "Allow-SSH"
+    priority               = 100
+    direction              = "Inbound"
+    access                 = "Allow"
+    protocol               = "Tcp"
+    source_port_range      = "*"
+    destination_port_range = "22"
 
-# resource "azurerm_subnet" "lab" {
-#   name                 = "snet-vm"
-#   resource_group_name  = azurerm_resource_group.lab.name
-#   virtual_network_name = azurerm_virtual_network.lab.name
-#   address_prefixes     = ["10.10.1.0/24"]
-# }
+    # CHANGE THIS TO YOUR PUBLIC IP
+    source_address_prefix = "102.88.167.64/32"
 
-# # -------------------------
-# # Network Security Group
-# # -------------------------
+    destination_address_prefix = "*"
+  }
+}
 
-# resource "azurerm_network_security_group" "lab" {
-#   name                = "nsg-terraform-vm"
-#   location            = azurerm_resource_group.lab.location
-#   resource_group_name = azurerm_resource_group.lab.name
+# -------------------------
+# Public IP
+# -------------------------
 
-#   security_rule {
-#     name                   = "Allow-SSH"
-#     priority               = 100
-#     direction              = "Inbound"
-#     access                 = "Allow"
-#     protocol               = "Tcp"
-#     source_port_range      = "*"
-#     destination_port_range = "22"
+resource "azurerm_public_ip" "lab" {
+  name                = "pip-terraform-vm"
+  location            = azurerm_resource_group.lab.location
+  resource_group_name = azurerm_resource_group.lab.name
 
-#     # CHANGE THIS TO YOUR PUBLIC IP
-#     source_address_prefix = "102.88.167.64/32"
+  allocation_method = "Static"
+  sku               = "Standard"
+}
 
-#     destination_address_prefix = "*"
-#   }
-# }
+# -------------------------
+# Network Interface
+# -------------------------
 
-# # -------------------------
-# # Public IP
-# # -------------------------
+resource "azurerm_network_interface" "lab" {
+  name                = "nic-terraform-vm"
+  location            = azurerm_resource_group.lab.location
+  resource_group_name = azurerm_resource_group.lab.name
 
-# resource "azurerm_public_ip" "lab" {
-#   name                = "pip-terraform-vm"
-#   location            = azurerm_resource_group.lab.location
-#   resource_group_name = azurerm_resource_group.lab.name
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.lab.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.lab.id
+  }
+}
 
-#   allocation_method = "Static"
-#   sku               = "Standard"
-# }
+# -------------------------
+# Associate NSG with NIC
+# -------------------------
 
-# # -------------------------
-# # Network Interface
-# # -------------------------
+resource "azurerm_network_interface_security_group_association" "lab" {
+  network_interface_id      = azurerm_network_interface.lab.id
+  network_security_group_id = azurerm_network_security_group.lab.id
+}
 
-# resource "azurerm_network_interface" "lab" {
-#   name                = "nic-terraform-vm"
-#   location            = azurerm_resource_group.lab.location
-#   resource_group_name = azurerm_resource_group.lab.name
+variable "ssh_public_key" {
+  description = "SSH public key for the Azure VM"
+  type        = string
+}
 
-#   ip_configuration {
-#     name                          = "internal"
-#     subnet_id                     = azurerm_subnet.lab.id
-#     private_ip_address_allocation = "Dynamic"
-#     public_ip_address_id          = azurerm_public_ip.lab.id
-#   }
-# }
+# -------------------------
+# Linux VM
+# -------------------------
 
-# # -------------------------
-# # Associate NSG with NIC
-# # -------------------------
+resource "azurerm_linux_virtual_machine" "lab" {
+  name                = "testVM1"
+  resource_group_name = azurerm_resource_group.lab.name
+  location            = azurerm_resource_group.lab.location
 
-# resource "azurerm_network_interface_security_group_association" "lab" {
-#   network_interface_id      = azurerm_network_interface.lab.id
-#   network_security_group_id = azurerm_network_security_group.lab.id
-# }
+  size           = "Standard_D2nlds_v6"
+  admin_username = "azureuser"
 
-# variable "ssh_public_key" {
-#   description = "SSH public key for the Azure VM"
-#   type        = string
-# }
+  network_interface_ids = [
+    azurerm_network_interface.lab.id
+  ]
 
-# # -------------------------
-# # Linux VM
-# # -------------------------
+  disable_password_authentication = true
 
-# resource "azurerm_linux_virtual_machine" "lab" {
-#   name                = "vm-terraform-lab"
-#   resource_group_name = azurerm_resource_group.lab.name
-#   location            = azurerm_resource_group.lab.location
+  admin_ssh_key {
+    username   = "azureuser"
+    public_key = var.ssh_public_key
+  }
 
-#   size           = "Standard_D2nlds_v6"
-#   admin_username = "azureuser"
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
 
-#   network_interface_ids = [
-#     azurerm_network_interface.lab.id
-#   ]
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "ubuntu-24_04-lts"
+    sku       = "server"
+    version   = "latest"
+  }
 
-#   disable_password_authentication = true
-
-#   admin_ssh_key {
-#     username   = "azureuser"
-#     public_key = var.ssh_public_key
-#   }
-
-#   os_disk {
-#     caching              = "ReadWrite"
-#     storage_account_type = "Standard_LRS"
-#   }
-
-#   source_image_reference {
-#     publisher = "Canonical"
-#     offer     = "ubuntu-24_04-lts"
-#     sku       = "server"
-#     version   = "latest"
-#   }
-
-#   tags = {
-#     Environment = "Lab"
-#     ManagedBy   = "Terraform"
-#   }
-# }
+  tags = {
+    Environment = "Lab"
+    ManagedBy   = "Terraform"
+  }
+}
 
 
 
 
 
-# # -------------------------
-# # Outputs
-# # -------------------------
+# -------------------------
+# Outputs
+# -------------------------
+output "public_ip" {
+  value = azurerm_public_ip.lab.ip_address
+}
 
-# output "public_ip" {
-#   value = azurerm_public_ip.lab.ip_address
-# }
-
-# output "private_ip" {
-#   value = azurerm_network_interface.lab.private_ip_address
-# }
+output "private_ip" {
+  value = azurerm_network_interface.lab.private_ip_address
+}
